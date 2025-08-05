@@ -6,6 +6,7 @@ Based on the working Python script provided
 import psycopg2
 import psycopg2.pool
 import logging
+import os
 from typing import Optional, Dict, Any, List
 from app.config import settings
 import threading
@@ -21,13 +22,13 @@ class DatabaseManager:
     async def connect(self):
         """Create database connection pool using psycopg2"""
         try:
-            # Use the exact same connection parameters from the working Python script
+            # Use environment variables for database connection
             db_params = {
-                "dbname": "postgres",
-                "user": "postgres.ozgkgkenzpngnptdqbqf",
-                "password": "PwbcCdD?Yq4Jn.v",
-                "host": "aws-0-ap-south-1.pooler.supabase.com",
-                "port": 5432
+                "dbname": os.getenv("DATABASE_NAME", "postgres"),
+                "user": os.getenv("DATABASE_USER", "postgres.ozgkgkenzpngnptdqbqf"),
+                "password": os.getenv("DATABASE_PASSWORD", "PwbcCdD?Yq4Jn.v"),
+                "host": os.getenv("DATABASE_HOST", "aws-0-ap-south-1.pooler.supabase.com"),
+                "port": int(os.getenv("DATABASE_PORT", "5432"))
             }
             
             logger.info(f"Connecting to database at {db_params['host']}:{db_params['port']}")
@@ -72,7 +73,20 @@ class DatabaseManager:
     ) -> List[Dict[str, Any]]:
         """Execute a PostgreSQL function with parameters (synchronous)"""
         if not self.pool:
-            raise RuntimeError("Database pool not initialized")
+            logger.error("Database pool is None - attempting to reconnect...")
+            # Try to reconnect if pool is None
+            try:
+                import asyncio
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # We're in an async context, can't call async connect from sync method
+                    raise RuntimeError("Database pool not initialized - server may not be properly started")
+                else:
+                    # We can try to reconnect
+                    asyncio.run(self.connect())
+            except Exception as e:
+                logger.error(f"Failed to reconnect to database: {e}")
+                raise RuntimeError("Database pool not initialized")
         
         conn = None
         try:

@@ -33,8 +33,16 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Costing API...")
     
     try:
+        logger.info("Attempting to connect to database...")
         await database_manager.connect()
         logger.info("Database connected successfully")
+        
+        # Verify the pool is actually created
+        if database_manager.pool is None:
+            logger.error("Database pool is None after connection attempt!")
+        else:
+            logger.info("Database pool verified as initialized")
+            
     except Exception as e:
         logger.error(f"Database connection failed: {e}")
         logger.warning("API starting without database connection - some endpoints will not work")
