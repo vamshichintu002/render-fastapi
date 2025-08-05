@@ -1,0 +1,64 @@
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Docker files
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+README.md
+*.md
+
+# Testing
+test_*.py
+*_test.py
+tests/
+pytest.ini
+.coverage
+htmlcov/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+__pycache__/
+*.pyc
+*.pyo
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Backup files
+*.bak
+*.backup
+
+# Git
+.git/
+.gitignore
+
+# Nginx config (not needed for Vercel)
+nginx.conf
+
+# Setup scripts
+setup.sh
+start.py 
