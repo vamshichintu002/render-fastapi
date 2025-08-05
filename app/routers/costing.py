@@ -9,7 +9,7 @@ import asyncio
 import logging
 from datetime import datetime
 
-from app.database_psycopg2 import database_manager
+from app.database import database_manager
 from app.services.costing_service_sync import CostingService
 from app.models.costing_models import (
     CostingRequest,

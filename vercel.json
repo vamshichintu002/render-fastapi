@@ -1,31 +1,17 @@
 {
-  "version": 2,
   "builds": [
     {
-      "src": "api/health.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/costing/main-scheme/volume.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/costing/additional-scheme/volume.py",
+      "src": "api/index.py",
       "use": "@vercel/python"
     }
   ],
   "routes": [
     {
-      "src": "/api/health",
-      "dest": "/api/health.py"
-    },
-    {
-      "src": "/api/costing/main-scheme/volume",
-      "dest": "/api/costing/main-scheme/volume.py"
-    },
-    {
-      "src": "/api/costing/additional-scheme/volume",
-      "dest": "/api/costing/additional-scheme/volume.py"
+      "src": "/(.*)",
+      "dest": "api/index.py"
     }
-  ]
-} 
+  ],
+  "env": {
+    "PYTHONPATH": "/var/task"
+  }
+}

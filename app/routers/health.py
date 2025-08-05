@@ -30,23 +30,19 @@ async def detailed_health():
     """Detailed health check with system info"""
     try:
         db_healthy = await database_manager.health_check()
-        pool_status = "initialized" if database_manager.pool is not None else "not_initialized"
         
         return {
             "status": "healthy" if db_healthy else "unhealthy",
             "database": "connected" if db_healthy else "disconnected",
-            "database_pool": pool_status,
             "version": "1.0.0",
             "python_version": "3.x",
             "components": {
                 "database": "healthy" if db_healthy else "unhealthy",
-                "database_pool": pool_status,
                 "api": "healthy"
             }
         }
     except Exception as e:
         return {
             "status": "unhealthy",
-            "error": str(e),
-            "database_pool": "error"
+            "error": str(e)
         }

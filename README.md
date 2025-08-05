@@ -66,7 +66,6 @@ API_PORT=8000
 DEBUG=True
 
 ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
-API_BASE_URL=http://localhost:8000
 ```
 
 ### 3. Start the API
@@ -83,16 +82,16 @@ uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 
 ### 4. Access Documentation
 
-- API Documentation: ${API_BASE_URL:-http://localhost:8000}/docs
-- Alternative Docs: ${API_BASE_URL:-http://localhost:8000}/redoc
-- Health Check: ${API_BASE_URL:-http://localhost:8000}/health/
+- API Documentation: http://localhost:8000/docs
+- Alternative Docs: http://localhost:8000/redoc
+- Health Check: http://localhost:8000/health/
 
 ## Usage Examples
 
 ### Main Scheme Value Costing
 
 ```bash
-curl -X POST "${API_BASE_URL:-http://localhost:8000}/api/costing/main-scheme/value" \
+curl -X POST "http://localhost:8000/api/costing/main-scheme/value" \
   -H "Content-Type: application/json" \
   -d '{"scheme_id": "168725"}'
 ```
@@ -100,7 +99,7 @@ curl -X POST "${API_BASE_URL:-http://localhost:8000}/api/costing/main-scheme/val
 ### Additional Scheme Volume Costing
 
 ```bash
-curl -X POST "${API_BASE_URL:-http://localhost:8000}/api/costing/additional-scheme/volume" \
+curl -X POST "http://localhost:8000/api/costing/additional-scheme/volume" \
   -H "Content-Type: application/json" \
   -d '{"scheme_id": "168725", "scheme_index": 0}'
 ```
@@ -108,13 +107,13 @@ curl -X POST "${API_BASE_URL:-http://localhost:8000}/api/costing/additional-sche
 ### Complexity Analysis
 
 ```bash
-curl -X GET "${API_BASE_URL:-http://localhost:8000}/api/costing/scheme/168725/complexity"
+curl -X GET "http://localhost:8000/api/costing/scheme/168725/complexity"
 ```
 
 ### Batch Processing
 
 ```bash
-curl -X POST "${API_BASE_URL:-http://localhost:8000}/api/costing/batch" \
+curl -X POST "http://localhost:8000/api/costing/batch" \
   -H "Content-Type: application/json" \
   -d '[
     {"scheme_id": "168725", "calculation_type": "main_value"},
@@ -148,7 +147,7 @@ Update your frontend to call the FastAPI backend instead of Supabase RPC:
 const result = await supabase.rpc('costing_sheet_value_mainscheme', { p_scheme_id: schemeId });
 
 // Use:
-const response = await fetch(`${process.env.VITE_FASTAPI_URL || 'http://localhost:8000'}/api/costing/main-scheme/value`, {
+const response = await fetch('http://localhost:8000/api/costing/main-scheme/value', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ scheme_id: schemeId })

@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:blog.nnitiwe.io)",
+      "Bash(python3:*)"
+    ],
+    "deny": []
+  }
+}

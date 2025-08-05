@@ -1,64 +1,36 @@
-# Development files
-.env
-.env.local
-.env.development
-.env.test
-.env.production
-
-# Docker files
-Dockerfile
-docker-compose.yml
-.dockerignore
-
-# Documentation
-README.md
-*.md
-
-# Testing
-test_*.py
-*_test.py
-tests/
-pytest.ini
-.coverage
-htmlcov/
-
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-logs/
-
-# Temporary files
-*.tmp
-*.temp
 __pycache__/
 *.pyc
 *.pyo
-
-# Database files
-*.db
-*.sqlite
-*.sqlite3
-
-# Backup files
-*.bak
-*.backup
-
-# Git
+*.pyd
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
 .git/
-.gitignore
-
-# Nginx config (not needed for Vercel)
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+.DS_Store
+*.sqlite3
+*.db
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+docker-compose.yml
+Dockerfile
 nginx.conf
-
-# Setup scripts
 setup.sh
-start.py 
+start.py
+test_*.py
+tests/

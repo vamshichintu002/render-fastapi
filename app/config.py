@@ -24,9 +24,6 @@ class Settings:
         if origin.strip()
     ]
     
-    # API Base URL for frontend integration
-    API_BASE_URL: str = os.getenv("API_BASE_URL", "http://localhost:8000")
-    
     # Performance
     MAX_CONCURRENT_REQUESTS: int = int(os.getenv("MAX_CONCURRENT_REQUESTS", "10"))
     REQUEST_TIMEOUT: int = int(os.getenv("REQUEST_TIMEOUT", "300"))
