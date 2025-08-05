@@ -1,17 +1,31 @@
 {
   "version": 2,
-  "functions": {
-    "api/health.py": {
-      "runtime": "python3.9"
+  "builds": [
+    {
+      "src": "api/health.py",
+      "use": "@vercel/python"
     },
-    "api/costing/main-scheme/volume.py": {
-      "runtime": "python3.9"
+    {
+      "src": "api/costing/main-scheme/volume.py",
+      "use": "@vercel/python"
     },
-    "api/costing/additional-scheme/volume.py": {
-      "runtime": "python3.9"
+    {
+      "src": "api/costing/additional-scheme/volume.py",
+      "use": "@vercel/python"
     }
-  },
-  "env": {
-    "PYTHONPATH": "."
-  }
+  ],
+  "routes": [
+    {
+      "src": "/api/health",
+      "dest": "/api/health.py"
+    },
+    {
+      "src": "/api/costing/main-scheme/volume",
+      "dest": "/api/costing/main-scheme/volume.py"
+    },
+    {
+      "src": "/api/costing/additional-scheme/volume",
+      "dest": "/api/costing/additional-scheme/volume.py"
+    }
+  ]
 } 
