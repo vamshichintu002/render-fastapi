@@ -6,6 +6,7 @@ Based on the working Python script provided
 import psycopg2
 import psycopg2.pool
 import logging
+import os
 from typing import Optional, Dict, Any, List
 from app.config import settings
 import threading
@@ -21,13 +22,13 @@ class DatabaseManager:
     async def connect(self):
         """Create database connection pool using psycopg2"""
         try:
-            # Use the exact same connection parameters from the working Python script
+            # Use environment variables for database connection
             db_params = {
-                "dbname": "postgres",
-                "user": "postgres.ozgkgkenzpngnptdqbqf",
-                "password": "PwbcCdD?Yq4Jn.v",
-                "host": "aws-0-ap-south-1.pooler.supabase.com",
-                "port": 5432
+                "dbname": os.getenv("DATABASE_NAME", "postgres"),
+                "user": os.getenv("DATABASE_USER", "postgres.ozgkgkenzpngnptdqbqf"),
+                "password": os.getenv("DATABASE_PASSWORD", "PwbcCdD?Yq4Jn.v"),
+                "host": os.getenv("DATABASE_HOST", "aws-0-ap-south-1.pooler.supabase.com"),
+                "port": int(os.getenv("DATABASE_PORT", "5432"))
             }
             
             logger.info(f"Connecting to database at {db_params['host']}:{db_params['port']}")
