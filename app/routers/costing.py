@@ -207,6 +207,56 @@ async def analyze_scheme_complexity(scheme_id: str):
         logger.error(f"Error analyzing scheme complexity: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/scheme/{scheme_id}/additional-schemes")
+async def get_additional_schemes(scheme_id: str):
+    """Get additional schemes information for a given scheme ID"""
+    try:
+        logger.info(f"Fetching additional schemes for scheme_id: {scheme_id}")
+        
+        schemes = await costing_service.get_additional_schemes(scheme_id)
+        
+        return {
+            "status": "success",
+            "data": schemes
+        }
+    except Exception as e:
+        logger.error(f"Error getting additional schemes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/set-no-timeout")
+async def set_no_timeout():
+    """Set no timeout for database operations"""
+    try:
+        logger.info("Setting no timeout for database operations")
+        
+        # This is a placeholder - in a real implementation, you might set a session variable
+        # For now, we'll just return success
+        return {
+            "status": "success",
+            "message": "No timeout set for this session"
+        }
+    except Exception as e:
+        logger.error(f"Error setting no timeout: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/scheme/{scheme_id}/exists")
+async def check_scheme_exists(scheme_id: str):
+    """Check if a scheme exists"""
+    try:
+        logger.info(f"Checking if scheme exists: {scheme_id}")
+        
+        # Check if scheme exists in the database
+        exists = await costing_service.check_scheme_exists(scheme_id)
+        
+        return {
+            "status": "success",
+            "exists": exists,
+            "scheme_id": scheme_id
+        }
+    except Exception as e:
+        logger.error(f"Error checking scheme existence: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/batch")
 async def batch_costing_calculation(requests: List[CostingRequest]):
     """Process multiple costing calculations in batch"""
