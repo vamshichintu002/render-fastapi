@@ -186,6 +186,49 @@ class CostingService:
         result['scheme_index'] = scheme_index
         return result
     
+    async def get_additional_schemes(self, scheme_id: str) -> List[Dict[str, Any]]:
+        """Get additional schemes information for a given scheme ID"""
+        try:
+            logger.info(f"Fetching additional schemes for scheme_id: {scheme_id}")
+            
+            # Execute the get_additional_schemes_simple function
+            schemes = database_manager.execute_function('get_additional_schemes_simple', [scheme_id])
+            
+            if not schemes:
+                logger.warning(f"No additional schemes found for scheme_id: {scheme_id}")
+                return []
+            
+            logger.info(f"Found {len(schemes)} additional schemes for scheme_id: {scheme_id}")
+            return schemes
+            
+        except Exception as e:
+            logger.error(f"Error getting additional schemes: {e}")
+            raise e
+
+    async def check_scheme_exists(self, scheme_id: str) -> bool:
+        """Check if a scheme exists in the database"""
+        try:
+            logger.info(f"Checking if scheme exists: {scheme_id}")
+            
+            # Check if scheme exists in schemes_data table
+            result = database_manager.execute_query(
+                "SELECT COUNT(*) as count FROM schemes_data WHERE scheme_id = %s",
+                [scheme_id]
+            )
+            
+            if result and len(result) > 0:
+                count = result[0].get('count', 0)
+                exists = count > 0
+                logger.info(f"Scheme {scheme_id} exists: {exists}")
+                return exists
+            
+            logger.warning(f"Could not determine if scheme {scheme_id} exists")
+            return False
+            
+        except Exception as e:
+            logger.error(f"Error checking scheme existence: {e}")
+            raise e
+    
     async def analyze_scheme_complexity(self, scheme_id: str) -> SchemeComplexityAnalysis:
         """Analyze scheme complexity to predict processing time"""
         try:
