@@ -1,11 +1,12 @@
 import psycopg2
 import pandas as pd
-import threading
-import itertools
 import sys
 import time
 import json
+import logging
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Tuple
 # Import the queries from the separate file
 from tracker_queries import (
     TRACKER_MAINSCHEME_VALUE,
@@ -22,6 +23,16 @@ db_params = {
     "host": "aws-0-ap-south-1.pooler.supabase.com",
     "port": 5432
 }
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Define all columns returned by get_scheme_configuration function
 SCHEME_CONFIG_COLUMNS = [
@@ -338,14 +349,117 @@ ADDITIONAL_SCHEME_REMOVE_COLUMNS = [
     "so_name"
 ]
 
-def loading_animation(stop_event):
-    for c in itertools.cycle(['|', '/', '-', '\\']):
-        if stop_event.is_set():
-            break
-        sys.stdout.write('\rQuery running... ' + c)
-        sys.stdout.flush()
-        time.sleep(0.1)
-    sys.stdout.write('\rQuery completed! \n')
+
+def execute_single_query(query_data: Tuple[int, str, str]) -> Tuple[int, pd.DataFrame, str, float]:
+    """
+    Execute a single query in a separate thread with timing and logging.
+    
+    Args:
+        query_data: Tuple of (index, query, scheme_name)
+        
+    Returns:
+        Tuple of (index, dataframe, scheme_name, execution_time)
+    """
+    idx, query, scheme_name = query_data
+    start_time = time.time()
+    
+    try:
+        logger.info(f"🔄 Starting Query {idx+1} execution for scheme: {scheme_name}")
+        logger.info(f"📋 Query {idx+1} preview: {query[:200]}{'...' if len(query) > 200 else ''}")
+        
+        # Create a new database connection for this thread
+        conn = psycopg2.connect(**db_params)
+        logger.info(f"✅ Database connection established for Query {idx+1}")
+        
+        # Set timeout
+        cur = conn.cursor()
+        cur.execute("SET statement_timeout = 0;")
+        conn.commit()
+        cur.close()
+        
+        # Execute query
+        query_start = time.time()
+        df = pd.read_sql_query(query, conn)
+        query_time = time.time() - query_start
+        
+        conn.close()
+        
+        execution_time = time.time() - start_time
+        
+        if df.empty:
+            logger.warning(f"⚠️ Query {idx+1} returned no results")
+        else:
+            logger.info(f"✅ Query {idx+1} completed successfully: {len(df)} rows, {len(df.columns)} columns, Query time: {query_time:.2f}s, Total time: {execution_time:.2f}s")
+        
+        return idx, df, scheme_name, execution_time
+        
+    except Exception as e:
+        execution_time = time.time() - start_time
+        logger.error(f"❌ Query {idx+1} failed after {execution_time:.2f}s: {str(e)}")
+        # Return empty dataframe on error
+        return idx, pd.DataFrame(), scheme_name, execution_time
+
+def run_multiple_queries_parallel(function_queries: List[str], scheme_names: List[str]) -> Tuple[List[pd.DataFrame], float]:
+    """
+    Execute multiple queries in parallel with comprehensive logging.
+    
+    Args:
+        function_queries: List of SQL queries to execute
+        scheme_names: List of scheme names corresponding to queries
+        
+    Returns:
+        Tuple of (list of dataframes in original order, total execution time)
+    """
+    total_start_time = time.time()
+    logger.info(f"🚀 Starting parallel execution of {len(function_queries)} queries")
+    
+    # Prepare query data for parallel execution
+    query_data_list = [(idx, query, scheme_names[idx]) for idx, query in enumerate(function_queries)]
+    
+    # Use ThreadPoolExecutor for parallel execution
+    max_workers = min(len(function_queries), 5)  # Limit to 5 concurrent connections
+    logger.info(f"🔧 Using {max_workers} parallel workers")
+    
+    results = [None] * len(function_queries)  # Pre-allocate to maintain order
+    execution_times = []
+    
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        # Submit all queries
+        future_to_index = {executor.submit(execute_single_query, query_data): query_data[0] 
+                          for query_data in query_data_list}
+        
+        completed_count = 0
+        # Process completed queries as they finish
+        for future in as_completed(future_to_index):
+            try:
+                idx, df, scheme_name, exec_time = future.result()
+                results[idx] = df
+                execution_times.append(exec_time)
+                completed_count += 1
+                
+                logger.info(f"📊 Progress: {completed_count}/{len(function_queries)} queries completed")
+                
+            except Exception as e:
+                idx = future_to_index[future]
+                logger.error(f"❌ Unexpected error processing Query {idx+1}: {str(e)}")
+                results[idx] = pd.DataFrame()  # Empty dataframe on error
+    
+    total_execution_time = time.time() - total_start_time
+    
+    # Log summary statistics
+    logger.info(f"🎯 Parallel execution completed in {total_execution_time:.2f}s")
+    logger.info(f"📈 Performance metrics:")
+    logger.info(f"   - Total queries: {len(function_queries)}")
+    logger.info(f"   - Successful queries: {sum(1 for df in results if not df.empty)}")
+    logger.info(f"   - Failed queries: {sum(1 for df in results if df.empty)}")
+    logger.info(f"   - Average query time: {sum(execution_times)/len(execution_times):.2f}s")
+    logger.info(f"   - Fastest query: {min(execution_times):.2f}s")
+    logger.info(f"   - Slowest query: {max(execution_times):.2f}s")
+    logger.info(f"   - Total time (parallel): {total_execution_time:.2f}s")
+    logger.info(f"   - Estimated sequential time: {sum(execution_times):.2f}s")
+    logger.info(f"   - Time saved: {sum(execution_times) - total_execution_time:.2f}s ({((sum(execution_times) - total_execution_time) / sum(execution_times) * 100):.1f}%)")
+    
+    return results, total_execution_time
 
 def fetch_scheme_config(conn, scheme_id):
     # Updated to use the new function
@@ -603,62 +717,80 @@ def calculate_scheme_final_payout(row, main_scheme_type, additional_scheme_confi
 
 def run_multiple_queries_and_combine(function_queries, scheme_names, scheme_config_df):
     try:
-        conn = psycopg2.connect(**db_params)
-        stop_event = threading.Event()
-        t = threading.Thread(target=loading_animation, args=(stop_event,))
-        t.start()
+        overall_start_time = time.time()
+        logger.info(f"🚀 Starting tracker execution with {len(function_queries)} queries")
+        
+        # Execute queries in parallel
+        query_results, parallel_exec_time = run_multiple_queries_parallel(function_queries, scheme_names)
+        
+        logger.info(f"🔄 Processing query results and combining data...")
+        processing_start_time = time.time()
+        
         aligned_tables = []
         all_credit_accounts = set()
         
-        for idx, query in enumerate(function_queries):
-            cur = conn.cursor()
-            cur.execute("SET statement_timeout = 0;")
-            conn.commit()
-            cur.close()
-            
-            print(f"\nExecuting Query {idx+1}:")
-            print(query[:200] + "..." if len(query) > 200 else query)
-            
-            df = pd.read_sql_query(query, conn)
+        for idx, df in enumerate(query_results):
             scheme_name = scheme_names[idx]
             
             if df.empty:
-                print(f"Query {idx+1} returned no results.")
+                logger.warning(f"⚠️ Query {idx+1} returned no results, skipping")
                 continue
                 
-            print(f"Query {idx+1} returned {len(df)} rows and {len(df.columns)} columns.")
+            logger.info(f"📊 Processing Query {idx+1} result: {len(df)} rows, {len(df.columns)} columns")
             
             if 'credit_account' in df.columns:
+                credit_accounts_count = len(df['credit_account'].dropna().unique())
                 all_credit_accounts.update(df['credit_account'].dropna().unique())
+                logger.info(f"   - Found {credit_accounts_count} unique credit accounts")
                 
             if idx == 0:
                 # Keep all columns for main scheme (we'll remove columns later based on conditions)
-                pass
+                logger.info(f"   - Main scheme data processed")
             else:
                 # For additional schemes, rename columns first, then add scheme name
+                original_columns = len(df.columns)
                 df = df.rename(columns={col: f"{col}_p{idx}" if col != 'credit_account' else col for col in df.columns})
                 df.insert(0, f"SCHEME_NAME_p{idx}", scheme_name)
+                logger.info(f"   - Additional scheme data processed: {original_columns} columns renamed with suffix '_p{idx}'")
             
             aligned_tables.append(df)
         
         # Create merged dataframe with all credit accounts
+        logger.info(f"🔄 Creating merged dataframe with {len(all_credit_accounts)} unique credit accounts")
+        merge_start_time = time.time()
         merged_df = pd.DataFrame({'credit_account': list(all_credit_accounts)})
         
         # Merge all tables
-        for df in aligned_tables:
+        for idx, df in enumerate(aligned_tables):
+            logger.info(f"   - Merging table {idx+1} with {len(df)} rows")
             merged_df = pd.merge(merged_df, df, on='credit_account', how='outer')
         
+        merge_time = time.time() - merge_start_time
+        logger.info(f"✅ Merge completed in {merge_time:.2f}s: Final dataframe has {len(merged_df)} rows, {len(merged_df.columns)} columns")
+        
         # Sort by presence (number of non-null values)
+        logger.info(f"🔄 Sorting dataframe by data presence...")
+        sort_start_time = time.time()
         merged_df['presence_count'] = merged_df.notna().sum(axis=1)
         merged_df = merged_df.sort_values(by='presence_count', ascending=False).drop(columns='presence_count')
+        sort_time = time.time() - sort_start_time
+        logger.info(f"✅ Sorting completed in {sort_time:.2f}s")
         
         # Only fill specific columns with 0, not the entire dataframe
         # This preserves actual values while handling missing values appropriately
+        logger.info(f"🔄 Processing numeric columns and filling missing values...")
+        fill_start_time = time.time()
         numeric_cols = merged_df.select_dtypes(include=['int64', 'float64']).columns
+        filled_cols_count = 0
         for col in numeric_cols:
             # Only fill columns that are likely to be financial/numeric metrics
             if col.startswith(("Payout", "Bonus", "Phasing", "MP", "Mandatory", "Growth", "Target", "Value", "%", "Achieved")):
+                null_count_before = merged_df[col].isnull().sum()
                 merged_df[col] = merged_df[col].fillna(0)
+                if null_count_before > 0:
+                    filled_cols_count += 1
+        fill_time = time.time() - fill_start_time
+        logger.info(f"✅ Filled missing values in {filled_cols_count} numeric columns in {fill_time:.2f}s")
         
         # Fill-down for additional_scheme_index_pX columns
         for col in merged_df.columns:
@@ -984,8 +1116,6 @@ def run_multiple_queries_and_combine(function_queries, scheme_names, scheme_conf
             )
             print(f"✅ Added Scheme Reward column with 'Credit Note Rs.' prefix for non-ho-scheme")
         
-        stop_event.set()
-        t.join()
         
         if merged_df.empty:
             print("No data returned from any queries.")
@@ -1045,20 +1175,38 @@ def run_multiple_queries_and_combine(function_queries, scheme_names, scheme_conf
             
             # Insert/Update tracker data in database using the same ordered JSON data
             # Get scheme period dates from main scheme configuration
+            logger.info(f"🔄 Saving tracker data to database...")
+            db_save_start_time = time.time()
             scheme_period_from = main_scheme_row['scheme_period_from'].values[0] if not main_scheme_row.empty else None
             scheme_period_to = main_scheme_row['scheme_period_to'].values[0] if not main_scheme_row.empty else None
+            
+            # Create new connection for database operations
+            conn = psycopg2.connect(**db_params)
             insert_tracker_data_to_db(scheme_id, json_data, scheme_period_from, scheme_period_to, conn)
+            conn.close()
+            
+            db_save_time = time.time() - db_save_start_time
+            total_processing_time = time.time() - processing_start_time
+            overall_time = time.time() - overall_start_time
+            
+            # Final summary logs
+            logger.info(f"✅ Database save completed in {db_save_time:.2f}s")
+            logger.info(f"🎯 Tracker execution completed successfully!")
+            logger.info(f"📊 Final Summary:")
+            logger.info(f"   - Total execution time: {overall_time:.2f}s")
+            logger.info(f"   - Parallel query execution: {parallel_exec_time:.2f}s")
+            logger.info(f"   - Data processing: {total_processing_time:.2f}s")
+            logger.info(f"   - Database save: {db_save_time:.2f}s")
+            logger.info(f"   - Final dataset: {len(merged_df)} rows, {len(merged_df.columns)} columns")
             
         except Exception as save_error:
-            print(f"❌ Error during processing: {save_error}")
-            print("Displaying first 5 rows in terminal:")
+            logger.error(f"❌ Error during processing: {save_error}")
+            logger.info("Displaying first 5 rows in terminal:")
             print(merged_df.head())
         
-        conn.close()
     except Exception as e:
-        stop_event.set()
-        t.join()
-        print(f"\n❌ Error during query execution: {e}")
+        overall_time = time.time() - overall_start_time
+        logger.error(f"❌ Error during tracker execution after {overall_time:.2f}s: {e}")
 
 if __name__ == "__main__":
     scheme_id = input("Enter Scheme ID: ").strip()

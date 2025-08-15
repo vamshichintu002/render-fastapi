@@ -2,8 +2,24 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:blog.nnitiwe.io)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(grep:*)",
+      "MCP(supabase)"
     ],
     "deny": []
+  },
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--read-only",
+        "--project-ref=ozgkgkenzpngnptdqbqf"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "sbp_932aae04df88c5b15608438f2df39b3fd2d2030a"
+      }
+    }
   }
 }

@@ -1,0 +1,160 @@
+
+● Here are several queries to check if your indexes are being used effectively:
+
+  🔍 Index Usage Monitoring Queries
+
+  1. Check All Sales Data Indexes Usage
+
+  SELECT
+      relname,
+      indexrelname,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch,
+      CASE
+          WHEN idx_scan = 0 THEN '❌ Not Used'
+          WHEN idx_scan < 100 THEN '⚠️ Low Usage'
+          WHEN idx_scan < 1000 THEN '✅ Moderate Usage'
+          ELSE '🚀 High Usage'
+      END as usage_status
+  FROM pg_stat_user_indexes
+  WHERE relname = 'sales_data'
+  ORDER BY idx_scan DESC;
+
+  2. Check Specific Volume Indexes
+
+  SELECT
+      relname,
+      indexrelname,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch,
+      round((idx_tup_read::numeric / NULLIF(idx_scan, 0)), 2) as avg_tuples_per_scan
+  FROM pg_stat_user_indexes
+  WHERE relname = 'sales_data'
+      AND (indexrelname LIKE '%volume%'
+           OR indexrelname LIKE '%credit_account%'
+           OR indexrelname LIKE '%material%'
+           OR indexrelname LIKE '%date%')
+  ORDER BY idx_scan DESC;
+
+  3. Check All Tables Index Usage Summary
+
+  SELECT
+      relname as table_name,
+      indexrelname as index_name,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch,
+      pg_size_pretty(pg_relation_size(indexrelid)) as index_size
+  FROM pg_stat_user_indexes
+  WHERE relname IN ('sales_data', 'material_master', 'schemes_data')
+      AND idx_scan > 0  -- Only show used indexes
+  ORDER BY relname, idx_scan DESC;
+
+  4. Find Unused Indexes (Potential for Removal)
+
+  SELECT
+      relname as table_name,
+      indexrelname as index_name,
+      pg_size_pretty(pg_relation_size(indexrelid)) as index_size,
+      'UNUSED - Consider dropping' as status
+  FROM pg_stat_user_indexes
+  WHERE relname IN ('sales_data', 'material_master', 'schemes_data')
+      AND idx_scan = 0  -- Never been used
+  ORDER BY pg_relation_size(indexrelid) DESC;
+
+  5. Index Efficiency Report
+
+  SELECT
+      relname,
+      indexrelname,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch,
+      CASE
+          WHEN idx_scan > 0 THEN round((idx_tup_read::numeric / idx_scan), 2)
+          ELSE 0
+      END as avg_tuples_per_scan,
+      CASE
+          WHEN idx_tup_read > 0 THEN round((idx_tup_fetch::numeric / idx_tup_read * 100), 2)
+          ELSE 0
+      END as fetch_percentage
+  FROM pg_stat_user_indexes
+  WHERE relname = 'sales_data'
+      AND idx_scan > 0
+  ORDER BY idx_scan DESC;
+
+  6. Real-time Index Usage During Query Execution
+
+  -- Run this BEFORE your query
+  SELECT
+      indexrelname,
+      idx_scan as scans_before
+  FROM pg_stat_user_indexes
+  WHERE relname = 'sales_data'
+  ORDER BY indexrelname;
+
+  -- [Run your TRACKER_MAINSCHEME_VOLUME query here]
+
+  -- Run this AFTER your query
+  SELECT
+      indexrelname,
+      idx_scan as scans_after,
+      idx_scan - lag(idx_scan) OVER (ORDER BY indexrelname) as new_scans
+  FROM pg_stat_user_indexes
+  WHERE relname = 'sales_data'
+  ORDER BY indexrelname;
+
+  7. Performance Impact Analysis
+
+  SELECT
+      schemaname,
+      relname,
+      indexrelname,
+      idx_scan,
+      idx_tup_read,
+      idx_tup_fetch,
+      n_tup_ins + n_tup_upd + n_tup_del as table_modifications,
+      pg_size_pretty(pg_relation_size(indexrelid)) as index_size,
+      CASE
+          WHEN idx_scan = 0 THEN 'Consider dropping'
+          WHEN idx_scan::float / GREATEST((n_tup_ins + n_tup_upd + n_tup_del), 1) > 1 THEN 'Very beneficial'
+          WHEN idx_scan::float / GREATEST((n_tup_ins + n_tup_upd + n_tup_del), 1) > 0.1 THEN 'Beneficial'
+          ELSE 'Low benefit'
+      END as benefit_assessment
+  FROM pg_stat_user_indexes pui
+  JOIN pg_stat_user_tables put ON pui.relid = put.relid
+  WHERE pui.relname IN ('sales_data', 'material_master', 'schemes_data')
+  ORDER BY pui.relname, idx_scan DESC;
+
+  8. Quick Health Check
+
+  -- Simple yes/no check for your key indexes
+  SELECT
+      'sales_data volume indexes' as check_type,
+      count(*) as total_volume_indexes,
+      sum(CASE WHEN idx_scan > 0 THEN 1 ELSE 0 END) as used_indexes,
+      sum(CASE WHEN idx_scan = 0 THEN 1 ELSE 0 END) as unused_indexes
+  FROM pg_stat_user_indexes
+  WHERE relname = 'sales_data'
+      AND indexrelname LIKE '%volume%'
+
+  UNION ALL
+
+  SELECT
+      'sales_data all indexes' as check_type,
+      count(*) as total_indexes,
+      sum(CASE WHEN idx_scan > 0 THEN 1 ELSE 0 END) as used_indexes,
+      sum(CASE WHEN idx_scan = 0 THEN 1 ELSE 0 END) as unused_indexes
+  FROM pg_stat_user_indexes
+  WHERE relname = 'sales_data';
+
+  🎯 Quick Usage Tips:
+
+  - Run Query #1 for a general overview
+  - Run Query #2 to specifically check volume indexes
+  - Run Query #6 before and after your main query to see real-time usage
+  - Run Query #8 for a quick health check
+
+  Choose the query that best fits what you want to monitor! 🚀
