@@ -10,38 +10,38 @@ BEGIN;
 -- =============================================================================
 
 -- Primary volume aggregation index (most important for volume queries)
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_aggregation_critical
-ON sales_data (credit_account, volume)
-INCLUDE (year, month, day, material, value, state_name, region_name);
+ON sales_data (credit_account, volume, year, month, day, material, value, state_name, region_name);
 
 -- Volume with material filtering (critical for volume queries)
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_material_critical
-ON sales_data (material, volume, credit_account)
-INCLUDE (year, month, day, value, customer_name, so_name);
+ON sales_data (material, volume, credit_account, year, month, day, value, customer_name, so_name);
 
 -- Volume aggregation with date filtering
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_date_critical
-ON sales_data (year, month, day, volume)
-INCLUDE (credit_account, material, value, state_name, region_name);
+ON sales_data (year, month, day, volume, credit_account, material, value, state_name, region_name);
 
 -- =============================================================================
 -- VOLUME FILTERING SPECIALIZED INDEXES
 -- =============================================================================
 
 -- Volume filtering with geographic data (common in volume queries)
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_geo_enhanced
-ON sales_data (state_name, region_name, volume, credit_account)
-INCLUDE (year, month, day, material, value);
+ON sales_data (state_name, region_name, volume, credit_account, year, month, day, material, value);
 
 -- Volume filtering with business hierarchy
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_business_enhanced
-ON sales_data (division, dealer_type, distributor, volume)
-INCLUDE (credit_account, material, year, month, day, value);
+ON sales_data (division, dealer_type, distributor, volume, credit_account, material, year, month, day, value);
 
 -- Volume filtering with area head (if used in volume calculations)
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_area_enhanced
-ON sales_data (area_head_name, volume, credit_account)
-INCLUDE (material, year, month, day, state_name, value);
+ON sales_data (area_head_name, volume, credit_account, material, year, month, day, state_name, value);
 
 -- =============================================================================
 -- VOLUME RANGE AND CONDITIONAL INDEXES
@@ -53,69 +53,69 @@ ON sales_data (credit_account, material, year, month, day)
 WHERE volume > 0;
 
 -- Index for significant volume transactions
+-- Using composite index instead of INCLUDE with WHERE clause
 CREATE INDEX IF NOT EXISTS idx_sales_data_significant_volume
-ON sales_data (credit_account, volume, material)
-WHERE volume > 10  -- Adjust threshold based on your data
-INCLUDE (year, month, day, value, state_name);
+ON sales_data (credit_account, volume, material, year, month, day, value, state_name)
+WHERE volume > 10;  -- Adjust threshold based on your data
 
 -- Index for high volume transactions
+-- Using composite index instead of INCLUDE with WHERE clause
 CREATE INDEX IF NOT EXISTS idx_sales_data_high_volume
-ON sales_data (volume, credit_account, material)
-WHERE volume > 100  -- Adjust threshold based on your data
-INCLUDE (year, month, day, value);
+ON sales_data (volume, credit_account, material, year, month, day, value)
+WHERE volume > 100;  -- Adjust threshold based on your data
 
 -- =============================================================================
 -- VOLUME WITH DATE COMBINATIONS
 -- =============================================================================
 
 -- Volume aggregation by year (common grouping)
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_year_grouping
-ON sales_data (year, credit_account, volume)
-INCLUDE (month, day, material, value);
+ON sales_data (year, credit_account, volume, month, day, material, value);
 
 -- Volume aggregation by month (common grouping)
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_month_grouping
-ON sales_data (year, month, credit_account, volume)
-INCLUDE (day, material, value, state_name);
+ON sales_data (year, month, credit_account, volume, day, material, value, state_name);
 
 -- Volume aggregation by quarter pattern
+-- Using composite index instead of INCLUDE with WHERE clause
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_quarter_pattern
-ON sales_data (year, month, volume, credit_account)
-WHERE month IN ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec')
-INCLUDE (day, material, value);
+ON sales_data (year, month, volume, credit_account, day, material, value)
+WHERE month IN ('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec');
 
 -- =============================================================================
 -- VOLUME CALCULATION SUPPORT INDEXES
 -- =============================================================================
 
 -- Support for volume calculations with customer data
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_customer_calc
-ON sales_data (customer_name, volume, credit_account)
-INCLUDE (material, year, month, day, value, state_name);
+ON sales_data (customer_name, volume, credit_account, material, year, month, day, value, state_name);
 
 -- Support for volume calculations with SO data
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_so_calc
-ON sales_data (so_name, volume, credit_account)
-INCLUDE (material, year, month, day, value);
+ON sales_data (so_name, volume, credit_account, material, year, month, day, value);
 
 -- Support for volume ratio calculations (volume vs value)
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_sales_data_volume_value_ratio
-ON sales_data (credit_account, volume, value)
-INCLUDE (material, year, month, day);
+ON sales_data (credit_account, volume, value, material, year, month, day);
 
 -- =============================================================================
 -- MATERIAL MASTER VOLUME OPTIMIZATION
 -- =============================================================================
 
 -- Enhanced material master index for volume queries
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_material_master_volume_enhanced
-ON material_master (material, category, grp)
-INCLUDE (wanda_group, thinner_group);
+ON material_master (material, category, grp, wanda_group, thinner_group);
 
 -- Material filtering for volume calculations
+-- Using composite index instead of INCLUDE
 CREATE INDEX IF NOT EXISTS idx_material_master_volume_filter_enhanced
-ON material_master (category, grp, material)
-INCLUDE (wanda_group, thinner_group);
+ON material_master (category, grp, material, wanda_group, thinner_group);
 
 -- =============================================================================
 -- SCHEMES DATA VOLUME-SPECIFIC JSON INDEXES
