@@ -5,21 +5,10 @@ import asyncio
 import subprocess
 import sys
 import os
-import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
 import collections
 from ..database_psycopg2 import DatabaseManager
-
-# Configure logging for tracker service
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - [TRACKER-SERVICE] - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
-)
-tracker_logger = logging.getLogger(__name__)
 
 # Import the queries from the separate file
 try:
@@ -206,51 +195,31 @@ class TrackerService:
         Returns:
             Dict containing success status and message
         """
-        request_start_time = datetime.now()
-        tracker_logger.info(f"📥 [API-REQUEST] Tracker run request received for scheme_id: {scheme_id} at {request_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        
         try:
             # Set a reasonable timeout for Vercel (50 seconds max)
-            tracker_logger.info(f"⏰ [SCHEME-{scheme_id}] Setting 45s timeout for execution")
-            result = await asyncio.wait_for(
+            return await asyncio.wait_for(
                 self._execute_tracker(scheme_id),
                 timeout=45.0  # Leave 5 seconds buffer for response
             )
-            
-            total_request_time = (datetime.now() - request_start_time).total_seconds()
-            tracker_logger.info(f"✅ [API-REQUEST] Tracker request completed successfully in {total_request_time:.2f}s for scheme_id: {scheme_id}")
-            
-            return result
-            
         except asyncio.TimeoutError:
             # If timeout occurs, mark as processing and return immediately
-            timeout_time = (datetime.now() - request_start_time).total_seconds()
-            tracker_logger.warning(f"⏰ [SCHEME-{scheme_id}] Execution timed out after {timeout_time:.2f}s, moving to background processing")
-            
             await self._mark_tracker_as_processing(scheme_id)
             return {
                 "success": True,
-                "message": f"Tracker for scheme {scheme_id} is being processed in the background due to timeout. Check status later.",
+                "message": f"Tracker for scheme {scheme_id} is being processed in the background. Check status later.",
                 "status": "running",
-                "scheme_id": scheme_id,
-                "timeout_duration": timeout_time
+                "scheme_id": scheme_id
             }
         except Exception as e:
-            error_time = (datetime.now() - request_start_time).total_seconds()
-            tracker_logger.error(f"❌ [SCHEME-{scheme_id}] Error running tracker after {error_time:.2f}s: {str(e)}")
             return {
                 "success": False,
                 "message": f"Error running tracker for scheme {scheme_id}: {str(e)}",
                 "status": "failed",
-                "scheme_id": scheme_id,
-                "error_duration": error_time
+                "scheme_id": scheme_id
             }
 
     async def _execute_tracker(self, scheme_id: str) -> Dict[str, Any]:
         """Execute the tracker logic by running the tracker_runner.py script"""
-        tracker_start_time = datetime.now()
-        tracker_logger.info(f"🚀 [SCHEME-{scheme_id}] Starting tracker execution at {tracker_start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        
         try:
             # Import the tracker runner functions
             current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -268,21 +237,18 @@ class TrackerService:
                     db_params
                 )
                 
-                tracker_logger.info(f"🔍 [SCHEME-{scheme_id}] Tracker modules imported successfully")
+                print(f"🔍 Starting tracker execution for scheme_id: {scheme_id}")
                 
                 # Execute tracker logic using the original functions with proper connection
                 conn = psycopg2.connect(**db_params)
-                tracker_logger.info(f"✅ [SCHEME-{scheme_id}] Database connected successfully")
+                print(f"✅ Database connected successfully")
                 
                 # Fetch scheme configuration
-                config_start = datetime.now()
                 scheme_config_df = fetch_scheme_config(conn, scheme_id)
-                config_time = (datetime.now() - config_start).total_seconds()
-                tracker_logger.info(f"📊 [SCHEME-{scheme_id}] Scheme config fetched in {config_time:.2f}s: {len(scheme_config_df)} rows")
+                print(f"📊 Scheme config fetched: {len(scheme_config_df)} rows")
                 
                 if scheme_config_df.empty:
                     conn.close()
-                    tracker_logger.error(f"❌ [SCHEME-{scheme_id}] No scheme configuration found")
                     return {
                         "success": False,
                         "message": f"No scheme configuration found for scheme_id: {scheme_id}. Please check if the scheme exists and has valid configuration.",
@@ -291,10 +257,8 @@ class TrackerService:
                     }
                 
                 # Build queries from templates
-                query_build_start = datetime.now()
                 queries, scheme_names = build_queries_from_templates(scheme_id, scheme_config_df)
-                query_build_time = (datetime.now() - query_build_start).total_seconds()
-                tracker_logger.info(f"🔨 [SCHEME-{scheme_id}] Built {len(queries)} queries from templates in {query_build_time:.2f}s")
+                print(f"🔨 Built {len(queries)} queries from templates")
                 
                 # Execute the main tracker logic - this function handles everything including database save
                 # We need to inject scheme_id into the tracker_runner module's globals
@@ -307,11 +271,7 @@ class TrackerService:
                 tracker_runner.scheme_id = scheme_id
                 
                 try:
-                    execution_start = datetime.now()
-                    tracker_logger.info(f"🏃 [SCHEME-{scheme_id}] Starting parallel query execution...")
                     run_multiple_queries_and_combine(queries, scheme_names, scheme_config_df)
-                    execution_time = (datetime.now() - execution_start).total_seconds()
-                    tracker_logger.info(f"⚡ [SCHEME-{scheme_id}] Parallel execution completed in {execution_time:.2f}s")
                 finally:
                     # Restore original state
                     if original_scheme_id is not None:
@@ -320,36 +280,30 @@ class TrackerService:
                         delattr(tracker_runner, 'scheme_id')
                 
                 conn.close()
-                
-                total_time = (datetime.now() - tracker_start_time).total_seconds()
-                tracker_logger.info(f"✅ [SCHEME-{scheme_id}] Tracker execution completed successfully in {total_time:.2f}s")
+                print(f"✅ Tracker execution completed successfully for scheme_id: {scheme_id}")
                 
                 return {
                     "success": True,
-                    "message": f"Tracker completed successfully for scheme_id: {scheme_id}. Data saved to database. Total time: {total_time:.2f}s",
+                    "message": f"Tracker completed successfully for scheme_id: {scheme_id}. Data saved to database.",
                     "status": "completed", 
-                    "scheme_id": scheme_id,
-                    "execution_time": total_time
+                    "scheme_id": scheme_id
                 }
                 
             except ImportError as import_err:
-                tracker_logger.error(f"❌ [SCHEME-{scheme_id}] Import error: {import_err}")
+                print(f"❌ Import error: {import_err}")
                 # Fallback to subprocess execution
                 return await self._execute_tracker_subprocess(scheme_id)
             except Exception as tracker_err:
-                total_time = (datetime.now() - tracker_start_time).total_seconds()
-                tracker_logger.error(f"❌ [SCHEME-{scheme_id}] Tracker execution error after {total_time:.2f}s: {tracker_err}")
+                print(f"❌ Tracker execution error: {tracker_err}")
                 raise tracker_err
             
         except Exception as e:
-            total_time = (datetime.now() - tracker_start_time).total_seconds()
-            tracker_logger.error(f"❌ [SCHEME-{scheme_id}] Error in _execute_tracker after {total_time:.2f}s: {str(e)}")
+            print(f"❌ Error in _execute_tracker: {str(e)}")
             return {
                 "success": False,
                 "message": f"Error executing tracker: {str(e)}",
                 "status": "failed",
-                "scheme_id": scheme_id,
-                "execution_time": total_time
+                "scheme_id": scheme_id
             }
     
     async def _execute_tracker_subprocess(self, scheme_id: str) -> Dict[str, Any]:

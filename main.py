@@ -12,7 +12,7 @@ from contextlib import asynccontextmanager
 import os
 from dotenv import load_dotenv
 
-from app.routers import costing, health, tracker
+from app.routers import costing, health
 from app.database_psycopg2 import database_manager
 from app.config import settings
 
@@ -69,7 +69,6 @@ app.add_middleware(
 # Include routers
 app.include_router(health.router, prefix="/health", tags=["health"])
 app.include_router(costing.router, prefix="/api/costing", tags=["costing"])
-app.include_router(tracker.router, prefix="/api/tracker", tags=["tracker"])
 
 @app.get("/")
 async def root():
