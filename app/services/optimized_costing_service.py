@@ -44,12 +44,26 @@ class OptimizedCostingService:
     """Optimized service for handling costing calculations with caching and parallel processing"""
     
     def __init__(self):
-        self.executor = ThreadPoolExecutor(max_workers=8)  # Increased for parallel processing
+        self.executor = ThreadPoolExecutor(max_workers=2)  # Reduced for memory efficiency
         self._data_cache = {}  # Cache for sales data
         self._config_cache = {}  # Cache for parsed configurations
         self._cache_lock = threading.Lock()  # Thread-safe cache access
+        self._max_cache_size = 5  # Limit cache size to prevent memory buildup
         self._cache_ttl = 3600  # Cache TTL in seconds (1 hour)
-        self._max_cache_size = 10  # Maximum number of cached datasets
+        
+    def _cleanup_memory(self):
+        """Clean up memory by clearing large DataFrames and forcing garbage collection"""
+        import gc
+        
+        with self._cache_lock:
+            if len(self._data_cache) > self._max_cache_size:
+                # Remove oldest entries
+                keys_to_remove = list(self._data_cache.keys())[:-self._max_cache_size]
+                for key in keys_to_remove:
+                    del self._data_cache[key]
+        
+        # Force garbage collection
+        gc.collect()
     
     @lru_cache(maxsize=100)
     def _parse_scheme_config(self, scheme_id: str) -> SchemeConfig:

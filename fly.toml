@@ -1,0 +1,44 @@
+# fly.toml app configuration file generated for costing-api on 2025-08-18T21:17:26+05:30
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'costing-api'
+primary_region = 'bom'
+
+[build]
+
+[env]
+  PYTHON_VERSION = "3.11"
+  PORT = "8000"
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+  max_machines_count = 3
+  processes = ['app']
+
+[[http_service.checks]]
+  grace_period = "10s"
+  interval = "30s"
+  method = "GET"
+  timeout = "5s"
+  path = "/health/"
+
+[processes]
+  app = "python start.py"
+
+[[vm]]
+  memory = '2gb'
+  cpu_kind = 'shared'
+  cpus = 1
+
+# Cost-optimized scaling configuration
+[scaling]
+  min_count = 0
+  max_count = 5
+  target_cpu_percent = 75
+  target_memory_percent = 75

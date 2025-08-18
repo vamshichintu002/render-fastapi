@@ -31,8 +31,8 @@ optimized_costing_service = OptimizedCostingService()
 vectorized_costing_service = VectorizedCostingService()
 
 # Performance optimization flags
-USE_OPTIMIZED_SERVICE = True
-USE_VECTORIZED_SERVICE = True   # Ultra-high performance with Numba JIT - DEFAULT ENABLED
+USE_OPTIMIZED_SERVICE = False  # DISABLED - Testing vectorized service only
+USE_VECTORIZED_SERVICE = True   # ENABLED - Using only vectorized service for performance testing
 
 def get_best_service():
     """Get the best available service based on performance flags"""
