@@ -1,171 +1,286 @@
-# Costing API
+# Costing Sheet Calculator API
 
-A high-performance FastAPI backend for handling complex costing calculations that timeout in the frontend.
+A high-performance FastAPI backend for generating comprehensive costing sheets using the new costing_sheet implementation. This system provides cost estimation and validation for paint scheme calculations with professional Excel output.
 
-## Features
+## 🚀 Features
 
-- **Async Processing**: Handles long-running costing calculations without timeouts
-- **Database Optimization**: Direct PostgreSQL connections with optimized connection pooling
-- **Batch Processing**: Process multiple calculations concurrently
-- **Complexity Analysis**: Analyze scheme complexity to predict processing time
-- **Health Monitoring**: Comprehensive health checks for API and database
-- **Error Handling**: Robust error handling with detailed logging
+### Core Functionality
+- **Costing Sheet Generation**: Complete cost estimation system using base period data
+- **Multi-Scheme Support**: Handles main scheme + additional schemes simultaneously
+- **Professional Output**: Generates formatted Excel files with multiple sheets
+- **Memory-Based Processing**: No intermediate file storage, single output file
+- **Base Period Focus**: Uses only base period data for cost estimation
 
-## API Endpoints
+### Technical Features
+- **FastAPI Backend**: High-performance async API with automatic documentation
+- **Comprehensive Validation**: Pre-calculation scheme validation
+- **Error Handling**: Robust error handling and recovery
+- **Background Processing**: Support for long-running calculations
+- **Docker Support**: Container-ready deployment
+- **Self-Contained**: All dependencies included for easy deployment
 
-### Main Scheme Costing
-- `POST /api/costing/main-scheme/value` - Value-based main scheme costing
-- `POST /api/costing/main-scheme/volume` - Volume-based main scheme costing
+### Calculation Scope
+- **Data Source**: Base period data only (excludes scheme period data)
+- **Columns**: Start through Target Volume/Target Value
+- **Schemes**: Main scheme + multiple additional schemes
+- **Output**: Single Excel file with 3 sheets (Main data, Summary, Metadata)
 
-### Additional Scheme Costing
-- `POST /api/costing/additional-scheme/value` - Value-based additional scheme costing
-- `POST /api/costing/additional-scheme/volume` - Volume-based additional scheme costing
+## 📋 System Architecture
 
-### Summary Calculations
-- `POST /api/costing/summary/main-scheme/value` - Value-based main scheme summary
-- `POST /api/costing/summary/main-scheme/volume` - Volume-based main scheme summary
-- `POST /api/costing/summary/additional-scheme/value` - Value-based additional scheme summary
-- `POST /api/costing/summary/additional-scheme/volume` - Volume-based additional scheme summary
+```
+costing-api/
+├── main.py                          # FastAPI application entry point
+├── app/
+│   ├── __init__.py
+│   ├── config.py                    # Application configuration
+│   ├── routers/
+│   │   ├── costing.py               # NEW: Costing sheet endpoints
+│   │   ├── health.py                # Health check endpoints
+│   │   └── tracker.py               # Existing tracker endpoints
+│   ├── services/                    # Business logic services
+│   └── models/                      # Pydantic models
+├── costing_sheet/                   # NEW: Costing sheet modules
+│   ├── __init__.py
+│   ├── calculator.py                # Main calculator orchestrator
+│   ├── data_processor.py            # Data fetching and processing
+│   ├── base_estimator.py            # Base cost calculations
+│   ├── mandatory_product_calculator.py
+│   ├── phasing_calculator.py
+│   ├── bonus_calculator.py
+│   ├── output_generator.py          # Excel file generation
+│   └── README.md
+├── costing_sheet_main.py            # NEW: CLI entry point
+├── requirements.txt                 # Updated with all dependencies
+└── Docker support files
+```
 
-### Utility Endpoints
-- `GET /api/costing/scheme/{scheme_id}/complexity` - Analyze scheme complexity
-- `POST /api/costing/batch` - Batch processing of multiple calculations
+## 🛠️ Quick Start
 
-### Health Checks
-- `GET /health/` - Basic health check
-- `GET /health/database` - Database health check
-- `GET /health/detailed` - Detailed system health
+### Local Development
 
-## Setup
-
-### 1. Install Dependencies
-
+1. **Install Dependencies**:
 ```bash
 cd costing-api
 pip install -r requirements.txt
 ```
 
-### 2. Environment Configuration
-
-Copy `.env.example` to `.env` and configure:
-
+2. **Run the Server**:
 ```bash
-cp .env.example .env
+python main.py
 ```
 
-Edit `.env` with your database credentials:
+The API will be available at `http://localhost:8000`
+
+### Docker Deployment
+
+1. **Build and Run**:
+```bash
+docker-compose up --build
+```
+
+2. **Access the API**:
+- API: `http://localhost:8000`
+- Documentation: `http://localhost:8000/docs`
+- Health Check: `http://localhost:8000/health`
+
+## 📊 API Endpoints
+
+### Costing Sheet Endpoints
+
+#### `POST /api/costing/calculate`
+Generate a complete costing sheet for a scheme ID.
+
+**Request Body**:
+```json
+{
+  "scheme_id": "563458"
+}
+```
+
+**Response**:
+```json
+{
+  "success": true,
+  "message": "Costing sheet generated successfully",
+  "output_file": "563458_COSTING_SHEET_20250822_103701.xlsx",
+  "processing_time_seconds": 128.24,
+  "calculation_summary": {
+    "total_accounts": 5072,
+    "main_scheme": {
+      "base1_volume_total": 10734707.7,
+      "base1_value_total": 3722941696.0,
+      "target_volume_total": 0.0,
+      "target_value_total": 4116241957.06
+    },
+    "additional_schemes": {
+      "scheme_1": {
+        "target_volume_total": 1190136.09,
+        "target_value_total": 0.0
+      }
+    }
+  },
+  "data_summary": {
+    "scheme_info": {...},
+    "base_period_summary": {...},
+    "memory_usage": {...}
+  },
+  "output_info": {
+    "file_size_mb": 3.63,
+    "created_time": "2025-08-22 10:37:02"
+  }
+}
+```
+
+#### `GET /api/costing/scheme/{scheme_id}/validate`
+Validate scheme requirements without full calculation.
+
+#### `GET /api/costing/scheme/{scheme_id}/summary`
+Get data summary for a scheme.
+
+#### `GET /api/costing/demo`
+Show system capabilities and demo information.
+
+### Legacy Endpoints (Still Available)
+- `POST /api/costing/main-scheme/value`
+- `POST /api/costing/main-scheme/volume`
+- `POST /api/costing/additional-scheme/value`
+- `POST /api/costing/additional-scheme/volume`
+
+## 📈 Calculation Process
+
+The costing sheet calculation follows these steps:
+
+1. **Scheme Validation**: Verify scheme requirements and data availability
+2. **Data Processing**: Fetch and process base period data only
+3. **Base Calculations**: Calculate base period metrics and aggregations
+4. **Scheme Metadata**: Add scheme configuration and settings
+5. **Growth Calculations**: Apply simplified growth rate calculations
+6. **Target Calculations**: Calculate volume/value targets using costing formulas
+7. **Additional Schemes**: Process additional schemes with scheme-specific data
+8. **Mandatory Products**: Calculate mandatory product requirements and rebates
+9. **Phasing**: Apply phasing calculations for multi-period schemes
+10. **Bonus Schemes**: Calculate bonus scheme payouts
+11. **Final Payout**: Calculate comprehensive estimated final payout
+12. **Output Generation**: Create professional Excel file with multiple sheets
+
+## 📊 Output Structure
+
+The generated Excel file contains three sheets:
+
+### Sheet 1: Main Costing Calculations
+- Account-level costing data with all calculated columns
+- From base period data through target volume/value
+- Includes mandatory products, phasing, and bonus calculations
+
+### Sheet 2: Summary Analysis
+- Overall statistics and metrics
+- Scheme performance summary
+- Key calculation totals
+
+### Sheet 3: Metadata and Configuration
+- Processing information
+- Scheme configuration details
+- System metadata
+
+## 🔧 Configuration
+
+### Environment Variables
+Create a `.env` file in the costing-api directory:
 
 ```env
-DATABASE_URL=postgresql://postgres:password@localhost:5432/your_database
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-supabase-anon-key
-SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+# Database Configuration (from supabaseconfig.py)
+DATABASE_URL=postgresql://user:password@host:port/database
 
+# API Configuration
 API_HOST=0.0.0.0
 API_PORT=8000
-DEBUG=True
+DEBUG=true
 
-ALLOWED_ORIGINS=http://localhost:3000,http://localhost:5173
+# CORS Configuration
+ALLOWED_ORIGINS=http://localhost:3000,https://your-frontend.com
 ```
 
-### 3. Start the API
+### Application Settings
+Modify `app/config.py` for application-specific settings.
 
+## 🚀 Deployment
+
+### Production Deployment
+
+1. **Using Docker Compose**:
 ```bash
-python start.py
+docker-compose -f docker-compose.yml up -d
 ```
 
-Or using uvicorn directly:
-
+2. **Using Docker directly**:
 ```bash
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+docker build -t costing-api .
+docker run -p 8000:8000 costing-api
 ```
 
-### 4. Access Documentation
+3. **Using Uvicorn**:
+```bash
+uvicorn main:app --host 0.0.0.0 --port 8000 --workers 4
+```
 
-- API Documentation: http://localhost:8000/docs
-- Alternative Docs: http://localhost:8000/redoc
-- Health Check: http://localhost:8000/health/
+### Nginx Configuration
+The provided `nginx.conf` can be used for production deployment with Nginx reverse proxy.
 
-## Usage Examples
+## 🧪 Testing
 
-### Main Scheme Value Costing
+### API Testing
+Use the interactive documentation at `/docs` or test with curl:
 
 ```bash
-curl -X POST "http://localhost:8000/api/costing/main-scheme/value" \
+# Calculate costing sheet
+curl -X POST "http://localhost:8000/api/costing/calculate" \
   -H "Content-Type: application/json" \
-  -d '{"scheme_id": "168725"}'
+  -d '{"scheme_id": "563458"}'
+
+# Validate scheme
+curl "http://localhost:8000/api/costing/scheme/563458/validate"
+
+# Demo mode
+curl "http://localhost:8000/api/costing/demo"
 ```
 
-### Additional Scheme Volume Costing
+### CLI Testing
+You can also run the costing sheet generator directly:
 
 ```bash
-curl -X POST "http://localhost:8000/api/costing/additional-scheme/volume" \
-  -H "Content-Type: application/json" \
-  -d '{"scheme_id": "168725", "scheme_index": 0}'
+cd costing-api
+python costing_sheet_main.py
 ```
 
-### Complexity Analysis
+## 📝 Development
 
-```bash
-curl -X GET "http://localhost:8000/api/costing/scheme/168725/complexity"
-```
+### Project Structure
+- `costing_sheet/` - Core costing calculation modules
+- `app/routers/` - FastAPI route definitions
+- `app/models/` - Pydantic data models
+- `app/services/` - Business logic services
 
-### Batch Processing
+### Adding New Features
+1. Add calculation logic to `costing_sheet/` modules
+2. Create API endpoints in `app/routers/costing.py`
+3. Add Pydantic models in `app/models/`
+4. Update documentation and tests
 
-```bash
-curl -X POST "http://localhost:8000/api/costing/batch" \
-  -H "Content-Type: application/json" \
-  -d '[
-    {"scheme_id": "168725", "calculation_type": "main_value"},
-    {"scheme_id": "168725", "scheme_index": 0, "calculation_type": "additional_volume"}
-  ]'
-```
+## 🤝 Contributing
 
-## Performance Optimizations
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests for new functionality
+5. Submit a pull request
 
-1. **Connection Pooling**: Optimized PostgreSQL connection pool (5-20 connections)
-2. **No Timeout**: Database queries run without statement timeout
-3. **Async Processing**: All operations are asynchronous
-4. **Batch Processing**: Multiple calculations processed concurrently
-5. **Memory Efficient**: Streaming results for large datasets
+## 📄 License
 
-## Monitoring
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-The API provides comprehensive logging and health monitoring:
+## 🆘 Support
 
-- Request/response logging
-- Database connection monitoring
-- Performance metrics (execution time, record counts)
-- Error tracking with stack traces
-
-## Integration with Frontend
-
-Update your frontend to call the FastAPI backend instead of Supabase RPC:
-
-```typescript
-// Instead of:
-const result = await supabase.rpc('costing_sheet_value_mainscheme', { p_scheme_id: schemeId });
-
-// Use:
-const response = await fetch('http://localhost:8000/api/costing/main-scheme/value', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ scheme_id: schemeId })
-});
-const result = await response.json();
-```
-
-## Deployment
-
-For production deployment:
-
-1. Set `DEBUG=False` in `.env`
-2. Use a production WSGI server like Gunicorn
-3. Set up reverse proxy with Nginx
-4. Configure proper logging and monitoring
-5. Use environment variables for sensitive configuration
-
-```bash
-# Production startup
-gunicorn main:app -w 4 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000
-```
+For support and questions:
+- Check the interactive API documentation at `/docs`
+- Review the demo mode at `/api/costing/demo`
+- Check application logs for detailed error information

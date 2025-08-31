@@ -56,3 +56,4 @@ try {
 
 Write-Host "🎉 Deployment process completed!" -ForegroundColor Green
 Write-Host "📖 For more information, visit: https://fly.io/docs/" -ForegroundColor Cyan
+

@@ -44,7 +44,7 @@ class OptimizedCostingService:
     """Optimized service for handling costing calculations with caching and parallel processing"""
     
     def __init__(self):
-        self.executor = ThreadPoolExecutor(max_workers=2)  # Reduced for memory efficiency
+        self.executor = ThreadPoolExecutor(max_workers=4)  # Increased for better concurrency
         self._data_cache = {}  # Cache for sales data
         self._config_cache = {}  # Cache for parsed configurations
         self._cache_lock = threading.Lock()  # Thread-safe cache access
@@ -199,8 +199,9 @@ class OptimizedCostingService:
             logger.error(f"Error parsing scheme config: {e}")
             raise
     
+    @lru_cache(maxsize=1000)
     def _parse_date(self, date_str: str) -> datetime:
-        """Parse date string that may include time component"""
+        """Parse date string that may include time component - cached for performance"""
         try:
             # Handle ISO format with Z timezone
             if date_str.endswith('Z'):
@@ -379,16 +380,17 @@ class OptimizedCostingService:
                 for col in numeric_columns:
                     if col in sales_df.columns:
                         sales_df[col] = pd.to_numeric(sales_df[col], errors='coerce').fillna(0.0)
+                
+                # Optimize memory usage with category dtypes for repeated strings
+                categorical_columns = ['state_name', 'customer_name', 'so_name', 'category', 'grp', 'wanda_group', 'thinner_group']
+                for col in categorical_columns:
+                    if col in sales_df.columns:
+                        sales_df[col] = sales_df[col].astype('category')
             
-            # Fetch material master data if needed for additional filtering
-            material_query = """
-            SELECT material, category, grp, wanda_group, thinner_group
-            FROM material_master
-            """
-            material_result = database_manager.execute_query(material_query)
-            material_df = pd.DataFrame(material_result)
+            logger.info(f"Fetched {len(sales_df)} sales records (material data already included via JOIN)")
             
-            logger.info(f"Fetched {len(sales_df)} sales records and {len(material_df)} materials")
+            # Create empty material_df since data is already in sales_df from JOIN
+            material_df = pd.DataFrame()
             
             # Create BaseData object
             base_data = BaseData(

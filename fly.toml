@@ -26,7 +26,7 @@ primary_region = 'bom'
   interval = "30s"
   method = "GET"
   timeout = "5s"
-  path = "/health/"
+  path = "/health"
 
 [processes]
   app = "python start.py"

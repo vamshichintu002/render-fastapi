@@ -1,0 +1,108 @@
+{
+  "summary": {
+    "total_tests": 6,
+    "successful_tests": 0,
+    "total_time_saved": 0,
+    "average_improvement": 0,
+    "best_improvement": 0,
+    "worst_improvement": 0
+  },
+  "detailed_results": [
+    {
+      "scheme_id": "1",
+      "calculation_type": "main_value",
+      "original": {
+        "execution_time": 0.8093175888061523,
+        "record_count": 1,
+        "success": true
+      },
+      "optimized": {
+        "execution_time": 0,
+        "record_count": 0,
+        "success": false,
+        "error": "Optimized main_value failed after 0.85s: Scheme 1 not found"
+      },
+      "improvement": {}
+    },
+    {
+      "scheme_id": "1",
+      "calculation_type": "main_volume",
+      "original": {
+        "execution_time": 0.7049531936645508,
+        "record_count": 1,
+        "success": true
+      },
+      "optimized": {
+        "execution_time": 0,
+        "record_count": 0,
+        "success": false,
+        "error": "Optimized main_volume failed after 0.63s: Scheme 1 not found"
+      },
+      "improvement": {}
+    },
+    {
+      "scheme_id": "2",
+      "calculation_type": "main_value",
+      "original": {
+        "execution_time": 0.6980278491973877,
+        "record_count": 1,
+        "success": true
+      },
+      "optimized": {
+        "execution_time": 0,
+        "record_count": 0,
+        "success": false,
+        "error": "Optimized main_value failed after 0.70s: Scheme 2 not found"
+      },
+      "improvement": {}
+    },
+    {
+      "scheme_id": "2",
+      "calculation_type": "main_volume",
+      "original": {
+        "execution_time": 1.0259344577789307,
+        "record_count": 1,
+        "success": true
+      },
+      "optimized": {
+        "execution_time": 0,
+        "record_count": 0,
+        "success": false,
+        "error": "Optimized main_volume failed after 1.07s: Scheme 2 not found"
+      },
+      "improvement": {}
+    },
+    {
+      "scheme_id": "3",
+      "calculation_type": "main_value",
+      "original": {
+        "execution_time": 1.2339351177215576,
+        "record_count": 1,
+        "success": true
+      },
+      "optimized": {
+        "execution_time": 0,
+        "record_count": 0,
+        "success": false,
+        "error": "Optimized main_value failed after 0.99s: Scheme 3 not found"
+      },
+      "improvement": {}
+    },
+    {
+      "scheme_id": "3",
+      "calculation_type": "main_volume",
+      "original": {
+        "execution_time": 1.2286183834075928,
+        "record_count": 1,
+        "success": true
+      },
+      "optimized": {
+        "execution_time": 0,
+        "record_count": 0,
+        "success": false,
+        "error": "Optimized main_volume failed after 0.91s: Scheme 3 not found"
+      },
+      "improvement": {}
+    }
+  ]
+}
